@@ -18,13 +18,13 @@ def main():
 
     while True: #loop pra receber mensagem aqui
         texto = network.recebermensagem(conexao)
-        if texto == "sair":
+        if msg == protocol.SAIR:
             break
         try:
             msg = Mensagem.de_texto(texto)
         except protocol.MensagemInvalida:
             continue  #ignora mensagem quebrada e segue esperando a prox
-        print(msg)  # usa o __str__ da msg da vez (entrou, saiu, texto padrao)
+        print(msg) # usa o __str__ da msg da vez (entrou, saiu, texto padrao)
 
     print(f"{endereco} desconectou") #saida
     conexao.close() #termina o server
