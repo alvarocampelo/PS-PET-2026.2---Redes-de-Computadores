@@ -13,10 +13,13 @@ clientes = []  # cria um vetor para armazenar as conexões recebidas
 def cadacliente(conexao, endereco): # cria uma função para tratar de cada cliente específico, e assim poder manter a conexão simultânea. aqui fica o que o cliente faz.
     while True: 
         texto = network.recebermensagem(conexao) # o servidor recebe a mensagem
+
+        if texto == "":
+            break
        
         try:
             msg = Mensagem.de_texto(texto) # conversão do tipo JSON
-        except protocol.MensagemInvalida: # se for mensagem inválida, break
+        except protocol.MensagemInvalida: # se for mensagem inválida, ignora e volta pro while
             continue  
 
         if msg.tipo == protocol.SAIR: # se a mensagem for a de saída, encerra o while
@@ -29,6 +32,7 @@ def cadacliente(conexao, endereco): # cria uma função para tratar de cada clie
                 network.mandarmensagem(cliente, msg.para_texto())
 
     print(f"{endereco} desconectou") #saida
+    clientes.remove(conexao) #remove a conexão desse cliente
     conexao.close() # encerra a conexão
 
 def main():
