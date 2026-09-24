@@ -3,9 +3,33 @@
 import network #usado pra criar os sockets
 import protocol
 from protocol import Mensagem #mandar/receber mensagens pelo servidor
+import threading 
 
 HOST = "0.0.0.0"
 PORTA = 5000 #porta tcp -> so um numero n, n>1024  pro cliente conectar
+
+clientes = []  # cria um vetor para armazenar as conexões recebidas
+
+def cadacliente(conexao, endereco): # cria uma função para tratar de cada cliente específico, e assim poder manter a conexão simultânea. aqui fica o que o cliente faz.
+    while True: 
+        texto = network.recebermensagem(conexao) # o servidor recebe a mensagem
+       
+        try:
+            msg = Mensagem.de_texto(texto) # conversão do tipo JSON
+        except protocol.MensagemInvalida: # se for mensagem inválida, break
+            continue  
+
+        if msg.tipo == protocol.SAIR: # se a mensagem for a de saída, encerra o while
+            break
+        
+        print(msg) 
+        
+        for cliente in clientes:
+            if cliente != conexao:
+                network.mandarmensagem(cliente, msg.para_texto())
+
+    print(f"{endereco} desconectou") #saida
+    conexao.close() # encerra a conexão
 
 def main():
     servidor = network.criarsocket() #cria o socket
@@ -13,21 +37,17 @@ def main():
     servidor.listen() #socket fica esperando algum cliente (escutando)
     print(f"Servidor ouvindo em {HOST}:{PORTA} (Ctrl+C para parar)")
 
-    conexao, endereco = servidor.accept()
-    print(f"{endereco} conectou") #confirmação do server criado
-
     while True: #loop pra receber mensagem aqui
-        texto = network.recebermensagem(conexao)
-        if msg == protocol.SAIR:
-            break
-        try:
-            msg = Mensagem.de_texto(texto)
-        except protocol.MensagemInvalida:
-            continue  #ignora mensagem quebrada e segue esperando a prox
-        print(msg) # usa o __str__ da msg da vez (entrou, saiu, texto padrao)
+        conexao, endereco = servidor.accept() # aceita o cliente, recebendo a conexão e o endereço correspondentes
+        print(f"{endereco} conectou") 
+        clientes.append(conexao)
+        
+        thread = threading.Thread( # executa a função cadacliente em paralelo. isso permite que o servidor realize a troca de mensagens, ao mesmo tempo que fica ouvindo novas conexões
+            target=cadacliente, # fala qual função vai ser executada em paralelo pelo thread
+            args=(conexao, endereco) # entrga os argumentos para a função cadacliente
+        )
+        thread.start()
 
-    print(f"{endereco} desconectou") #saida
-    conexao.close() #termina o server
     servidor.close()
 
 
