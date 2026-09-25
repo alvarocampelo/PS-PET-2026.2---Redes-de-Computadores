@@ -15,7 +15,7 @@ def cadacliente(conexao, endereco):
         try:
             texto = network.recebermensagem(conexao)
 
-        except (ConnectionResetError, ConnectionAbortedError):
+        except (ConnectionResetError, ConnectionAbortedError): # no caso do cliente desconectar repentinamente
             break
 
         if texto == "":
@@ -26,16 +26,16 @@ def cadacliente(conexao, endereco):
         except protocol.MensagemInvalida:
             continue
 
-        if msg.tipo == protocol.SAIR:
+        if msg.tipo == protocol.SAIR: # se for a mensagem de saída, desconecta
             break
 
         print(msg)
 
-        for cliente in clientes[:]:
+        for cliente in clientes[:]: #manda a mensagem para todas as conexões guardadas
             if cliente != conexao:
                 try:
                     network.mandarmensagem(cliente, msg.para_texto())
-                except (ConnectionResetError, ConnectionAbortedError):
+                except (ConnectionResetError, ConnectionAbortedError): # caso o cliente desconecte repentinamente, remover ele do vetor
                     clientes.remove(cliente)
                     cliente.close()
 
