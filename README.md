@@ -17,9 +17,8 @@ Um sistema de troca de mensagens em tempo real pelo terminal, com um servidor ce
 |---|---|
 | `source/network.py` | Camada de transporte. Só sabe criar sockets TCP/IPv4 e enviar/receber bytes brutos (`send`/`recv`). Não conhece o formato das mensagens — é usado tanto pelo cliente quanto pelo servidor. |
 | `source/protocol.py` | Camada de aplicação/protocolo. Define a classe `Mensagem` (tipo, remetente, conteúdo) e a conversão entre objeto e JSON (`para_texto`/`de_texto`), os tipos de mensagem (`entrar`, `sair`, `texto`), a classe `Cliente` (representa um usuário conectado no servidor) e as funções de criptografia (`cifrar`/`decifrar`), uma cifra de fluxo simétrica com keystream gerado a partir de SHA-256. Não depende de sockets. |
-| `source/server.py` | O servidor. Aceita conexões, cria uma thread por cliente conectado (`cadacliente`), recebe as mensagens de cada um e retransmite para todos os outros. Mantém a lista de clientes ativos e remove quem desconecta. |
-| `source/client_interface.py` | O cliente / interface do usuário no terminal. Conecta no servidor, pede apelido e chave da sala, mostra o logo, e roda em paralelo: uma thread que escuta e exibe mensagens recebidas (`ouvir`) e o loop principal que lê o que o usuário digita e envia. Suporta os comandos `/sair` e `/limpar`. |
-
+| `source/server.py` | O servidor. Aceita conexões, cria uma thread por cliente conectado (`cadacliente`), recebe as mensagens de cada um e retransmite para todos os outros. Mantém a lista de clientes ativos e o apelido de cada um, e avisa a sala quando alguém sai — tanto digitando `/sair` quanto numa queda abrupta da conexão. |
+| `source/client_interface.py` | O cliente / interface do usuário no terminal. Conecta no servidor (avisando com uma mensagem clara se não conseguir conectar), pede apelido e chave da sala, mostra o logo, e roda em paralelo: uma thread que escuta e exibe mensagens recebidas (`ouvir`) e o loop principal que lê o que o usuário digita e envia. Suporta os comandos `/sair` e `/limpar`. No Windows, ao ser executado ele se relança sozinho numa janela/aba de terminal própria, como se fosse um app separado. |
 ## Como rodar
 
 Requer apenas Python 3 (usa só bibliotecas padrão — `socket`, `json`, `threading`, `hashlib`, `base64`).
@@ -32,6 +31,7 @@ Requer apenas Python 3 (usa só bibliotecas padrão — `socket`, `json`, `threa
 ```bash
    python source/client_interface.py
 ```
+   No Windows, isso já abre uma janela/aba de terminal nova pra cada cliente automaticamente — não precisa abrir os terminais na mão. Em outras plataformas, roda no terminal atual.
 3. Informe um apelido e, opcionalmente, uma chave de sala (se todos os clientes usarem a mesma chave, as mensagens de texto trafegam cifradas entre eles).
 4. Para conectar a um servidor em outra máquina da rede, troque a constante `HOST` em `client_interface.py` pelo IP do computador que está rodando o servidor.
 
@@ -39,12 +39,12 @@ Comandos disponíveis no chat: `/sair` (desconecta) e `/limpar` (limpa a tela do
 
 ## Observações
 
-- A criptografia implementada é educacional: cifra o conteúdo das mensagens, mas não inclui verificação de integridade (não detecta mensagens adulteradas em trânsito). O objetivo aqui foi demonstrar o conceito de ponta a ponta, não substituir uma biblioteca de criptografia real.
+- A criptografia implementada é educacional: cifra o conteúdo das mensagens, mas não inclui verificação de integridade (não detecta mensagens adulteradas em rede).
 - Por padrão o servidor escuta em `0.0.0.0:5000` e o cliente conecta em `127.0.0.1:5000` (mesma máquina); ajuste conforme a rede usada.
 
 ---
 Desenvolvido para o processo seletivo do PET Eng. Comp. UFC — 2026.2.
 Equipe:
 - Álvaro Mendonça Vasconcelos Nunes Campelo
-- Marília
+- Marília Mascarenhas Ribeiro
 - Paulo Ícaro Matias Franco
