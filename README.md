@@ -1,4 +1,4 @@
-# Chat em Rede via Sockets — PET Eng. Comp. UFC 2026.2
+# PET-CHAT — PS PET Eng. Comp. UFC 2026.2
 
 Projeto do **Grupo Roxo** para o processo seletivo do PET Eng. Comp. UFC (2026.2), **Tema 6: Redes de Computadores**.
 
