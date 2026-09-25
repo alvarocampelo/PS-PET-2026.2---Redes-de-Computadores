@@ -5,6 +5,9 @@ import protocol
 from protocol import Mensagem #montar/ler as mensagens em json
 import threading
 import os
+import sys
+import subprocess
+import shutil
 
 HOST = "127.0.0.1" #ip do servidor (troque pelo ip do pc do servidor para conversar pela rede)
 PORTA = 5000 #mesma porta do servidor
@@ -55,8 +58,12 @@ def main():
     chave = input("Chave da sala: ").strip() #chave para cifrar/decifrar mensagens
 
     conexao = network.criarsocket() #cria o socket
-    conexao.connect((HOST, PORTA)) #conecta no servidor
-    print(f"Conectado em {HOST}:{PORTA}. Digite /sair para sair.")
+    try:
+        conexao.connect((HOST, PORTA)) #conecta no servidor
+    except OSError: #tratamento de erro caso nao consiga conectar no servidor
+        print(f"Não foi possível conectar em {HOST}:{PORTA}") #msg de falha
+        return
+    print(f"Conectado em {HOST}:{PORTA}. \nDigite /sair para sair. \nDigite /limpar para apagar todas mensagens.") #deixei ciente dos comandos existentes
 
     network.mandarmensagem(conexao, Mensagem(protocol.ENTRAR, apelido).para_texto()) #avisa que entrou
 
@@ -97,6 +104,24 @@ def main():
         pass
     conexao.close() #encerra a conexão
 
+def _abrir_em_nova_janela():
+    #retorna True se conseguiu abrir uma aba nova
+    if os.environ.get("CHAT_JANELA_PROPRIA") == "1":
+        return False #ja estamos rodando dentro da aba-> nao abre de novo
+
+    os.environ["CHAT_JANELA_PROPRIA"] = "1" #marca pro processo saber que nao precisa abrir mais
+    comando = [sys.executable, os.path.abspath(__file__)]
+
+    try:
+        if shutil.which("wt"): #windows terminal instalado-> abre como aba
+            subprocess.Popen(["wt", "-w", "0", "new-tab", "--"] + comando, env=os.environ)
+        else: #sem windows terminal-> abre uma aba de cmd
+            subprocess.Popen(["cmd", "/c", "start", "", "cmd", "/k"] + comando, env=os.environ)
+        return True
+    except OSError:
+        return False #nao conseguiu abrir janela nova-> roda aqui
 
 if __name__ == "__main__":
-    main() #rodar o programa mesmo aqui
+    if os.name == "nt" and _abrir_em_nova_janela():
+        sys.exit() #esse processo fecha, o chat continua rodando na aba nova
+    main() #rodar o programa mesmo aqui caso trave

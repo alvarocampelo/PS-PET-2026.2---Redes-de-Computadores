@@ -83,6 +83,5 @@ def main():
 
     servidor.close()
 
-
 if __name__ == "__main__":
     main() # rodar o programa mesmo aqui
