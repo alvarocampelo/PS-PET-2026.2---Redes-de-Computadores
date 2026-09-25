@@ -1,4 +1,4 @@
-# PET-CHAT — PS PET Eng. Comp. UFC 2026.2
+# PET-CHAT - PS PET Eng. Comp. UFC 2026.2
 
 Projeto do **Grupo Roxo** para o processo seletivo do PET Eng. Comp. UFC (2026.2), **Tema 6: Redes de Computadores**.
 
@@ -7,7 +7,7 @@ Um sistema de troca de mensagens em tempo real pelo terminal, com um servidor ce
 ## Como funciona
 
 - O **servidor** fica escutando conexões e mantém uma lista de clientes conectados. Cada cliente é atendido em sua própria *thread*, e toda mensagem recebida é retransmitida (broadcast) para os demais.
-- Cada **cliente** abre uma conexão com o servidor, informa um apelido e uma chave de sala e passa a enviar/receber mensagens. Uma *thread* separada fica só ouvindo o que chega, enquanto a *thread* principal cuida do que o usuário digita — assim dá pra receber mensagens sem travar a digitação.
+- Cada **cliente** abre uma conexão com o servidor, informa um apelido e uma chave de sala e passa a enviar/receber mensagens. Uma *thread* separada fica só ouvindo o que chega, enquanto a *thread* principal cuida do que o usuário digita, assim dá pra receber mensagens sem travar a digitação.
 - As mensagens trafegam como JSON (`{"tipo": ..., "remetente": ..., "conteudo": ...}`), com três tipos possíveis: entrada na sala, saída da sala e texto.
 - Se os dois lados combinarem uma **chave de sala**, o conteúdo das mensagens de texto é cifrado antes de sair do cliente e decifrado só por quem tem a mesma chave — uma forma simples de criptografia ponta a ponta (o servidor nunca vê o texto em claro).
 
@@ -32,7 +32,7 @@ Requer apenas Python 3 (usa só bibliotecas padrão — `socket`, `json`, `threa
 ```bash
    python source/client_interface.py
 ```
-   No Windows, isso já abre uma janela/aba de terminal nova pra cada cliente automaticamente — não precisa abrir os terminais na mão. Em outras plataformas, roda no terminal atual.
+   No Windows, isso já abre uma janela/aba de terminal nova pra cada cliente automaticamente, não precisa abrir os terminais na mão. Em outras plataformas, roda no terminal atual.
 
 3. Informe um apelido e, opcionalmente, uma chave de sala (se todos os clientes usarem a mesma chave, as mensagens de texto trafegam cifradas entre eles).
 
@@ -46,7 +46,7 @@ Comandos disponíveis no chat: `/sair` (desconecta) e `/limpar` (limpa a tela do
 - Por padrão o servidor escuta em `0.0.0.0:5000` e o cliente conecta em `127.0.0.1:5000` (mesma máquina); ajuste conforme a rede usada.
 
 ---
-Desenvolvido para o processo seletivo do PET Eng. Comp. UFC — 2026.2.
+Desenvolvido para o processo seletivo do PET Eng. Comp. UFC - 2026.2.
 Equipe:
 - Álvaro Mendonça Vasconcelos Nunes Campelo
 - Marília Mascarenhas Ribeiro
