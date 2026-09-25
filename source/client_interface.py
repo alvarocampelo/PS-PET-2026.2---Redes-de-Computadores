@@ -19,7 +19,7 @@ LOGO = r"""
                     chat pelo terminal  |  PET Eng. Comp. UFC
 """ #o r antes faz o python não tratar as barras \ como comando tipo \n
 
-def ouvir(conexao, apelido): #fica ouvindo(recebendo, procurando) as mensagens do servidor e mostrando na tela
+def ouvir(conexao, apelido, chave=""): #fica ouvindo(recebendo, procurando) as mensagens do servidor e mostrando na tela
     while True:
         try:
             texto = network.recebermensagem(conexao)
@@ -34,17 +34,25 @@ def ouvir(conexao, apelido): #fica ouvindo(recebendo, procurando) as mensagens d
         except protocol.MensagemInvalida:
             continue
 
-        print(f"\n{msg}") #\n pula a linha que o usuario ta escrevendo. screvendo embaixo
-        #aqui foi decisao minha mesmo, ou era isso, ou msg apagava no meio quando alguem enviasse! codigo pra substituir(testar):  print(f"\r{str(msg).ljust(len(apelido) + 2)}")
-        #terceira opcao é nao ter nada, mas achei muito feio, não fica evidente que está sendo esperado um texto
-         
-        print(f"{apelido}: ", end="", flush=True) #mostra o "apelido: " de novo embaixo, esperando novamente a mensagem
+        msg.decifrar(chave) #decifra a mensagem caso tenha chave
+
+        # codigo original do alvaro:
+        # print(f"\n{msg}") #\n pula a linha que o usuario ta escrevendo. screvendo embaixo
+        # aqui foi decisao minha mesmo, ou era isso, ou msg apagava no meio quando alguem enviasse! codigo pra substituir(testar):  print(f"\r{str(msg).ljust(len(apelido) + 2)}")
+        # terceira opcao é nao ter nada, mas achei muito feio, não fica evidente que está sendo esperado um texto
+        # print(f"{apelido}: ", end="", flush=True) #mostra o "apelido: " de novo embaixo, esperando novamente a mensagem
+
+        # solucao limpa: volta pro inicio da linha (\r), limpa a linha inteira (\033[2K) e imprime a mensagem recebida
+        print(f"\r\033[2K{msg}")
+        print(f"{apelido}: ", end="", flush=True) #redesenha o prompt de digitação embaixo
 
     print("* conexão encerrada")
 
 def main():
+    os.system("") #ativa interpretacao de caracteres ANSI no terminal do Windows (cmd/powershell)
     print(LOGO)
     apelido = input("Seu apelido: ").strip() or "anonimo" #nome que aparece pros outros
+    chave = input("Chave da sala: ").strip() #chave para cifrar/decifrar mensagens
 
     conexao = network.criarsocket() #cria o socket
     conexao.connect((HOST, PORTA)) #conecta no servidor
@@ -54,7 +62,7 @@ def main():
 
     thread = threading.Thread( #executa a função ouvir paralelamente. deixa receber mensagens enquanto o usuario dtambem igita
         target=ouvir,
-        args=(conexao,apelido),
+        args=(conexao, apelido, chave),
         daemon=True #a thread fecha junto com o programa
     )
     thread.start()
@@ -77,7 +85,9 @@ def main():
             continue
 
         try:
-            network.mandarmensagem(conexao, Mensagem(protocol.TEXTO, apelido, texto).para_texto())
+            # codigo original do alvaro:
+            # network.mandarmensagem(conexao, Mensagem(protocol.TEXTO, apelido, texto).para_texto())
+            network.mandarmensagem(conexao, Mensagem(protocol.TEXTO, apelido, texto).cifrar(chave).para_texto())
         except OSError: #servidor caiu
             break
 
