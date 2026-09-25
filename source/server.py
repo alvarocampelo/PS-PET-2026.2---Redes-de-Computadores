@@ -10,29 +10,38 @@ PORTA = 5000 #porta tcp -> so um numero n, n>1024  pro cliente conectar
 
 clientes = []  # cria um vetor para armazenar as conexões recebidas
 
-def cadacliente(conexao, endereco): # cria uma função para tratar de cada cliente específico, e assim poder manter a conexão simultânea. aqui fica o que o cliente faz.
-    while True: 
-        texto = network.recebermensagem(conexao) # o servidor recebe a mensagem
+def cadacliente(conexao, endereco):
+    while True:
+        try:
+            texto = network.recebermensagem(conexao)
+
+        except (ConnectionResetError, ConnectionAbortedError):
+            break
 
         if texto == "":
             break
-       
-        try:
-            msg = Mensagem.de_texto(texto) # conversão do tipo JSON
-        except protocol.MensagemInvalida: # se for mensagem inválida, ignora e volta pro while
-            continue  
 
-        if msg.tipo == protocol.SAIR: # se a mensagem for a de saída, encerra o while
+        try:
+            msg = Mensagem.de_texto(texto)
+        except protocol.MensagemInvalida:
+            continue
+
+        if msg.tipo == protocol.SAIR:
             break
-        
-        print(msg) 
-        
-        for cliente in clientes:
+
+        print(msg)
+
+        for cliente in clientes[:]:
             if cliente != conexao:
-                network.mandarmensagem(cliente, msg.para_texto())
+                try:
+                    network.mandarmensagem(cliente, msg.para_texto())
+                except (ConnectionResetError, ConnectionAbortedError):
+                    clientes.remove(cliente)
+                    cliente.close()
 
     print(f"{endereco} desconectou") #saida
-    clientes.remove(conexao) #remove a conexão desse cliente
+    if conexao in clientes:
+        clientes.remove(conexao) #remove a conexão desse cliente
     conexao.close() # encerra a conexão
 
 def main():
