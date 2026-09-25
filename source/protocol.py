@@ -10,11 +10,8 @@ SAIR = "sair" #pessoa saiu do chat
 TEXTO = "texto" #pessoa mandou algum texto, tipo texto(padrao)
 TIPOS = (ENTRAR, SAIR, TEXTO)
 
-# ========================================================
 # FUNÇÕES DE CRIPTOGRAFIA (E2EE - Ponta a Ponta)
 # Cifra de fluxo simétrica com Keystream SHA-256 e Base64
-# ========================================================
-
 def _gerar_keystream(chave, tamanho):
     bloco = 0
     stream = bytearray()
