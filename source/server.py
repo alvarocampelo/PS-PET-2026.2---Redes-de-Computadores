@@ -68,20 +68,34 @@ def main():
     servidor = network.criarsocket() #cria o socket
     servidor.bind((HOST, PORTA)) #aloca a porta pro socket dado pro server
     servidor.listen() #socket fica esperando algum cliente (escutando)
+    servidor.settimeout(1)
     print(f"Servidor ouvindo em {HOST}:{PORTA} (Ctrl+C para parar)")
+    
+    try:
+        while True: #loop pra receber mensagem aqui
+            try:
+                conexao, endereco = servidor.accept() # aceita o cliente, recebendo a conexão e o endereço correspondentes
 
-    while True: #loop pra receber mensagem aqui
-        conexao, endereco = servidor.accept() # aceita o cliente, recebendo a conexão e o endereço correspondentes
-        print(f"{endereco} conectou")
-        clientes.append(conexao)
-
-        thread = threading.Thread( # executa a função cadacliente em paralelo. isso permite que o servidor realize a troca de mensagens, ao mesmo tempo que fica ouvindo novas conexões
+            except TimeoutError:
+                continue
+                
+            print(f"{endereco} conectou")
+            clientes.append(conexao)
+            
+            thread = threading.Thread( # executa a função cadacliente em paralelo. isso permite que o servidor realize a troca de mensagens, ao mesmo tempo que fica ouvindo novas conexões
             target=cadacliente, # fala qual função vai ser executada em paralelo pelo thread
             args=(conexao, endereco) # entrga os argumentos para a função cadacliente
-        )
-        thread.start()
+            )
+            thread.start()
 
-    servidor.close()
+    except KeyboardInterrupt:
+        print("\nServidor encerrado.")
+        
+    finally:
+        servidor.close()
+        for cliente in clientes:
+            cliente.close()
+
 
 if __name__ == "__main__":
     main() # rodar o programa mesmo aqui
