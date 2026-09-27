@@ -1,0 +1,12 @@
+# Bytecode e cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de log e exportações locais de teste
+historico_chat.txt
+*.log
+
+# Documentos pessoais e anotações internas
+GUIA_REUNIAO_E_ARQUITETURA.md
+.user_uploaded/
