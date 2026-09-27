@@ -56,6 +56,12 @@ def ouvir(conexao, apelido, sessao, historico, jogo): #fica ouvindo as mensagens
 
         historico.append(_limpar_ansi(msg)) #guarda no historico pra poder salvar com /salvar
         cor_minha = protocol.cor_do_usuario(apelido)
+        # anotacao original do alvaro:
+        # print(f"\n{msg}") #\n pula a linha que o usuario ta escrevendo. screvendo embaixo
+        # aqui foi decisao minha mesmo, ou era isso, ou msg apagava no meio quando alguem enviasse! codigo pra substituir(testar):  print(f"\r{str(msg).ljust(len(apelido) + 2)}")
+        # terceira opcao é nao ter nada, mas achei muito feio, não fica evidente que está sendo esperado um texto
+        # print(f"{apelido}: ", end="", flush=True) #mostra o "apelido: " de novo embaixo, esperando novamente a mensagem
+
         # solucao limpa: volta pro inicio da linha (\r), limpa a linha inteira (\033[2K) e imprime a mensagem recebida
         print(f"\r\033[2K{msg}")
         print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True) #redesenha o prompt colorido de digitação embaixo
