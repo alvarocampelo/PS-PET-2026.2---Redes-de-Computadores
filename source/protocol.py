@@ -20,11 +20,8 @@ VERMELHO = "\033[91m" # mensagens com erro de decifragem
 ROXO = "\033[1;38;2;138;43;226m" # logo PET-CHAT em roxo real TrueColor (RGB 138, 43, 226)
 
 def cor_do_usuario(nome):
-    """
-    Gera uma cor ANSI TrueColor (RGB 24-bit) exclusiva e determinística para cada usuário.
-    Usa o SHA-256 do nome espalhado pelo círculo cromático HSL (0° a 359°),
-    com luminosidade e saturação calibradas para máxima nitidez no fundo escuro.
-    """
+    #gera uma cor exclusiva pra cada apelido usando o hash sha256 no circulo hsl
+    #garante que fica sempre legivel no fundo escuro sem precisar de biblioteca externa
     if not nome:
         return RESET
     digest = hashlib.sha256(nome.encode("utf-8")).digest()
@@ -35,36 +32,41 @@ def cor_do_usuario(nome):
     return f"\033[38;2;{ir};{ig};{ib}m"
 
 # FUNÇÕES DE CRIPTOGRAFIA (E2EE - Ponta a Ponta)
-# Cifra de fluxo simétrica com Keystream SHA-256 e Base64
+# cifra de fluxo simetrica usando sha256 nativo + xor + base64 (sem pip install!)
 def _gerar_keystream(chave, tamanho):
+    #gera uma sequencia de bytes pseudo-aleatorios com base na senha digitada
     bloco = 0
     stream = bytearray()
     while len(stream) < tamanho:
         bloco_bytes = hashlib.sha256(f"{chave}:{bloco}".encode("utf-8")).digest()
         stream.extend(bloco_bytes)
         bloco += 1
-    return stream[:tamanho]
+    return stream[:tamanho] #corta exatamente no tamanho que a mensagem precisa
 
 def cifrar(texto, chave):
+    #se nao colocou chave, manda o texto puro
     if not chave or not texto:
         return texto
+    #coloca "PET!" no inicio pra poder conferir se a chave tava certa na hora de decifrar
     dados = b"PET!" + texto.encode("utf-8")
     keystream = _gerar_keystream(chave, len(dados))
-    cifrado = bytes([b ^ k for b, k in zip(dados, keystream)])
-    return base64.b64encode(cifrado).decode("utf-8")
+    cifrado = bytes([b ^ k for b, k in zip(dados, keystream)]) #faz o xor byte a byte
+    return base64.b64encode(cifrado).decode("utf-8") #converte pra base64 pro json nao quebrar com bytes estranhos
 
 def decifrar(texto_cifrado, chave):
+    #se nao tem chave, devolve como ta
     if not chave or not texto_cifrado:
         return texto_cifrado
     try:
         cifrado = base64.b64decode(texto_cifrado.encode("utf-8"), validate=True)
         keystream = _gerar_keystream(chave, len(cifrado))
-        original = bytes([b ^ k for b, k in zip(cifrado, keystream)])
+        original = bytes([b ^ k for b, k in zip(cifrado, keystream)]) #desfaz o xor
+        #se nao começar com "PET!", a chave digitada tava errada!
         if not original.startswith(b"PET!"):
             return "[Mensagem criptografada - chave incorreta]"
-        return original[4:].decode("utf-8")
+        return original[4:].decode("utf-8") #remove o "PET!" e devolve o texto original
     except Exception:
-        return "[Mensagem criptografada - chave incorreta]"
+        return "[Mensagem criptografada - chave incorreta]" #se quebrou o base64 ou deu erro, avisa que ta criptografado
 
 class MensagemInvalida(ValueError):
     """O texto recebido não é uma mensagem válida do protocolo.""" #tratamento de mensagem invalida -> uso depois

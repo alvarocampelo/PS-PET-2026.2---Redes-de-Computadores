@@ -43,18 +43,18 @@ def ouvir(conexao, apelido, sessao, historico, jogo): #fica ouvindo as mensagens
         chave_atual = sessao.get("chave", "")
         msg.decifrar(chave_atual) #decifra a mensagem caso tenha chave
 
-        # mensagens de jogo da velha são tratadas na extensão abaixo
+        #pacote do jogo da velha -> se foi pra mim, manda pra funcao que cuida da partida
         if msg.tipo == protocol.JOGO:
             if msg.destinatario == apelido:
                 _tratar_mensagem_jogo(msg, apelido, conexao, chave_atual, jogo)
             continue
 
-        # se for mensagem privada, só exibe se for para mim ou enviada por mim
+        #se for sussurro privado, so mostra se eu for o destinatario ou quem mandou
         if msg.tipo == protocol.PRIVADO:
             if msg.destinatario != apelido and msg.remetente != apelido:
                 continue
 
-        historico.append(_limpar_ansi(msg)) #guarda no historico para o /salvar
+        historico.append(_limpar_ansi(msg)) #guarda no historico pra poder salvar com /salvar
         cor_minha = protocol.cor_do_usuario(apelido)
         # solucao limpa: volta pro inicio da linha (\r), limpa a linha inteira (\033[2K) e imprime a mensagem recebida
         print(f"\r\033[2K{msg}")
@@ -68,9 +68,9 @@ def main():
     apelido = input("Seu apelido: ").strip() or "anonimo" #nome que aparece pros outros
     cor_minha = protocol.cor_do_usuario(apelido) #cor exclusiva para o apelido
     chave = input("Chave da sala: ").strip() #chave para cifrar/decifrar mensagens
-    sessao = {"chave": chave} #dicionario mutavel para permitir troca de chave em tempo real
-    historico = [] #lista em memoria com o historico decifrado da sessao
-    jogo = velha.JogoDaVelha(apelido) #instancia do jogo da velha assincrono
+    sessao = {"chave": chave} #guarda a chave num dict pra thread conseguir trocar quando usar /chave
+    historico = [] #guarda as mensagens decifradas pra poder exportar com /salvar
+    jogo = velha.JogoDaVelha(apelido) #guarda o tabuleiro e estado do jogo da velha
 
     conexao = network.criarsocket() #cria o socket
     try:
@@ -104,7 +104,7 @@ def main():
             print(LOGO) #pra ficar bunitin dnv
             continue
 
-        # executa comandos adicionais (/chave, /salvar, /privado, /velha, /casa, /desistir)
+        #se foi comando especial (/chave, /privado, /salvar, /velha...), trata aqui e volta pro loop
         if processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             continue
 
@@ -145,12 +145,13 @@ def _abrir_em_nova_janela():
 # Criptografia E2EE, Comandos (/privado, /chave, /salvar) e Jogo da Velha
 
 def _limpar_ansi(texto):
-    # remove sequências de escape ANSI para gravar texto limpo no arquivo
+    #tira os codigos de cor ansi (tipo \033[93m) pro texto do /salvar ficar limpo no bloco de notas
     return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', str(texto))
 
 def _tratar_mensagem_jogo(msg, apelido, conexao, chave_atual, jogo):
+    #trata os pacotes do jogo da velha que chegam pela thread de ouvir
     try:
-        dados = json.loads(msg.conteudo)
+        dados = json.loads(msg.conteudo) #jogadas vem em formato json dentro do conteudo
     except (json.JSONDecodeError, ValueError):
         return
 
@@ -159,38 +160,38 @@ def _tratar_mensagem_jogo(msg, apelido, conexao, chave_atual, jogo):
     cor_minha = protocol.cor_do_usuario(apelido)
 
     if acao == "desafio":
-        if jogo.em_andamento:
+        if jogo.em_andamento: #ja ta jogando com alguem, responde que ta ocupado
             resp = Mensagem(protocol.JOGO, apelido, json.dumps({"acao": "ocupado"}), destinatario=msg.remetente)
             resp.cifrar(chave_atual)
             try:
                 network.mandarmensagem(conexao, resp.para_texto())
             except OSError:
                 pass
-        else:
+        else: #guarda quem chamou e mostra na tela pro usuario aceitar ou nao
             jogo.desafio_pendente_de = msg.remetente
             print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} desafiou você para um Jogo da Velha!{protocol.RESET}")
             print(f"{protocol.AMARELO}* Digite /aceitar para jogar ou /recusar para ignorar.{protocol.RESET}")
             print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
-    elif acao == "aceitar":
+    elif acao == "aceitar": #o outro aceitou nosso convite! a gente começa jogando com X
         jogo.iniciar(msg.remetente, sou_desafiante=True)
         print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} aceitou o desafio! Você joga primeiro como (X).{protocol.RESET}")
         print(velha.formatar_tabuleiro(jogo.tabuleiro))
         print(f"{protocol.AMARELO}* Sua vez! Digite /casa <1-9>{protocol.RESET}")
         print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
-    elif acao == "recusar":
+    elif acao == "recusar": #o outro arregou / recusou
         print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} recusou o seu desafio.{protocol.RESET}")
         print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
-    elif acao == "ocupado":
+    elif acao == "ocupado": #o alvo ja ta no meio de outra partida
         print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} já está em uma partida no momento.{protocol.RESET}")
         print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
-    elif acao == "jogada":
+    elif acao == "jogada": #o oponente marcou uma casa
         casa = dados.get("casa")
         if jogo.em_andamento and isinstance(casa, int) and 0 <= casa < 9:
-            jogo.tabuleiro[casa] = jogo.simbolo_oponente
+            jogo.tabuleiro[casa] = jogo.simbolo_oponente #marca a casa com o simbolo dele
             print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} jogou na casa {casa + 1}:{protocol.RESET}")
             print(velha.formatar_tabuleiro(jogo.tabuleiro))
 
@@ -201,24 +202,22 @@ def _tratar_mensagem_jogo(msg, apelido, conexao, chave_atual, jogo):
             elif vencedor == "EMPATE":
                 print(f"{protocol.AMARELO}* [JOGO] Fim de partida: Deu velha (empate)!{protocol.RESET}")
                 jogo.resetar()
-            else:
+            else: #se ninguem ganhou ainda, passa a vez pra mim
                 jogo.minha_vez = True
                 print(f"{protocol.AMARELO}* Sua vez, {cor_minha}{apelido}{protocol.AMARELO} ({jogo.meu_simbolo})! Digite /casa <1-9>{protocol.RESET}")
 
             print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
-    elif acao == "desistir":
+    elif acao == "desistir": #oponente usou /desistir
         if jogo.em_andamento:
             print(f"\r\033[2K{protocol.AMARELO}* [JOGO] {cor_rem}{msg.remetente}{protocol.AMARELO} desistiu da partida. Você venceu por W.O.!{protocol.RESET}")
             jogo.resetar()
             print(f"{cor_minha}{apelido}{protocol.RESET}: ", end="", flush=True)
 
 def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
-    """
-    Processa comandos especiais do chat.
-    Retorna True se o texto foi um comando tratado, ou False para mensagem normal.
-    """
-    if texto.startswith("/chave"):
+    #trata os comandos com barra (/) digitados pelo usuario
+    #se foi comando, retorna True pro loop principal nao mandar como mensagem de chat comum
+    if texto.startswith("/chave"): #troca a senha da sala em tempo real
         partes = texto.split(" ", 1)
         nova_chave = partes[1].strip() if len(partes) > 1 else ""
         sessao["chave"] = nova_chave
@@ -226,7 +225,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
         print(f"{protocol.AMARELO}* Chave da sala alterada para: {aviso}{protocol.RESET}")
         return True
 
-    if texto.startswith("/salvar"):
+    if texto.startswith("/salvar"): #exporta o que foi conversado ate agora pra um arquivo de texto
         partes = texto.split(" ", 1)
         nome_arquivo = partes[1].strip() if len(partes) > 1 and partes[1].strip() else "historico_chat.txt"
         try:
@@ -239,13 +238,13 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             print(f"{protocol.VERMELHO}* Erro ao salvar histórico: {e}{protocol.RESET}")
         return True
 
-    if texto.startswith("/privado ") or texto.startswith("/w "):
+    if texto.startswith("/privado ") or texto.startswith("/w "): #manda whisper privado cifrado
         partes = texto.split(" ", 2)
         if len(partes) >= 3:
             alvo = partes[1].strip()
             conteudo = partes[2].strip()
             msg = Mensagem(protocol.PRIVADO, apelido, conteudo, destinatario=alvo)
-            msg.cifrar(sessao.get("chave", ""))
+            msg.cifrar(sessao.get("chave", "")) #cifra antes de mandar pro socket
             try:
                 network.mandarmensagem(conexao, msg.para_texto())
                 cor_alvo = protocol.cor_do_usuario(alvo)
@@ -257,7 +256,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             print(f"{protocol.AMARELO}* Uso correto: /privado <apelido> <mensagem>{protocol.RESET}")
         return True
 
-    if texto.startswith("/velha "):
+    if texto.startswith("/velha "): #desafia alguem online pro jogo da velha
         partes = texto.split(" ", 1)
         alvo = partes[1].strip() if len(partes) > 1 else ""
         if not alvo:
@@ -269,6 +268,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
         if jogo.em_andamento:
             print(f"{protocol.AMARELO}* Você já está em uma partida contra {jogo.oponente}! Use /desistir para sair.{protocol.RESET}")
             return True
+        #manda pacote de convite cifrado
         msg_desafio = Mensagem(protocol.JOGO, apelido, json.dumps({"acao": "desafio"}), destinatario=alvo)
         msg_desafio.cifrar(sessao.get("chave", ""))
         try:
@@ -278,12 +278,12 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             pass
         return True
 
-    if texto == "/aceitar":
+    if texto == "/aceitar": #aceita o desafio pendente
         if not jogo.desafio_pendente_de:
             print(f"{protocol.AMARELO}* Você não tem nenhum desafio pendente.{protocol.RESET}")
             return True
         oponente = jogo.desafio_pendente_de
-        jogo.iniciar(oponente, sou_desafiante=False)
+        jogo.iniciar(oponente, sou_desafiante=False) #quem aceita fica com o O e espera o X jogar
         msg_aceitar = Mensagem(protocol.JOGO, apelido, json.dumps({"acao": "aceitar"}), destinatario=oponente)
         msg_aceitar.cifrar(sessao.get("chave", ""))
         try:
@@ -294,7 +294,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             pass
         return True
 
-    if texto == "/recusar":
+    if texto == "/recusar": #recusa o convite de partida
         if not jogo.desafio_pendente_de:
             print(f"{protocol.AMARELO}* Você não tem nenhum desafio pendente.{protocol.RESET}")
             return True
@@ -309,7 +309,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             pass
         return True
 
-    if texto.startswith("/casa ") or texto.startswith("/c "):
+    if texto.startswith("/casa ") or texto.startswith("/c "): #faz a jogada no tabuleiro
         if not jogo.em_andamento:
             print(f"{protocol.AMARELO}* Você não está em nenhuma partida. Desafie alguém com /velha <nome>{protocol.RESET}")
             return True
@@ -330,7 +330,8 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             return True
 
         jogo.tabuleiro[idx] = jogo.meu_simbolo
-        jogo.minha_vez = False
+        jogo.minha_vez = False #passa a vez
+        #manda a jogada cifrada pro oponente
         msg_jogada = Mensagem(protocol.JOGO, apelido, json.dumps({"acao": "jogada", "casa": idx}), destinatario=jogo.oponente)
         msg_jogada.cifrar(sessao.get("chave", ""))
         try:
@@ -351,7 +352,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
             pass
         return True
 
-    if texto == "/desistir":
+    if texto == "/desistir": #desiste da partida em andamento
         if not jogo.em_andamento:
             print(f"{protocol.AMARELO}* Você não está em nenhuma partida.{protocol.RESET}")
             return True
@@ -366,7 +367,7 @@ def processar_comando(texto, apelido, conexao, sessao, historico, jogo):
         jogo.resetar()
         return True
 
-    return False
+    return False #nao era nenhum comando, segue o fluxo normal de enviar mensagem pro chat
 
 if __name__ == "__main__":
     if os.name == "nt" and _abrir_em_nova_janela():
